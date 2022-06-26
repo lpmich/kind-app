@@ -1,0 +1,32 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width", intial-scale=1">
+    <title> Go App </title>
+  </head>
+  <body style="text-align:center;">
+    <a style="float:left;padding-left:.8em;" href="/view"> View People </a>
+    <h1 style="font-size:2.5em;"> Go Application </h1>
+    <form action="/process" method="POST">
+
+      <label for="fname"> First Name </label>
+      <input type="text" name="first" id="fname" placeholder="First Name" required="required" />
+
+      <label for="lname"> Last Name </label>
+      <input type="text" name="last" id="lname" placeholder="Last Name" required="required"/>
+
+      <label for="colors"> Favorite Color </label>
+      <select name="color" id="colors" required="required">
+        <option value="Red"> Red </option>
+        <option value="Blue"> Blue </option>
+        <option value="Green"> Green </option>
+        <option value="Brown"> Brown </option>
+        <option value="Orange"> Orange </option>
+        <option value="Yellow"> Yellow </option>
+        <option value="Pink"> Pink </option>
+        <option value="Purple"> Purple </option>
+      </select>
+      <input type="submit" />
+    </form>
+  </body>
+</html>
