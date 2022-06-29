@@ -4,7 +4,10 @@ nodes:
 # Master node
 - role: control-plane
   extraPortMappings:
-  - containerPort: 30999
+  - containerPort: 30888
     hostPort: 80
+    protocol: TCP
+  - containerPort: 30999
+    hostPort: 443
     protocol: TCP
 - role: worker

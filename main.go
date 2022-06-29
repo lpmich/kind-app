@@ -105,6 +105,11 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
     t.Execute(w, people)
 }
 
+// Redirects http to https
+func redirectHTTP(w http.ResponseWriter, r *http.Request) {
+    http.Redirect(w, r, "https://localhost"+r.RequestURI, 302)
+}
+
 // Serve application
 func main() {
     fmt.Println("Starting Application...")
@@ -124,10 +129,13 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    fmt.Println("Serving application")
-    // Listen and handle http requests
+    // Listen and handle http/s requests
+    fmt.Println("Serving Application")
     http.HandleFunc("/", indexHandler)
     http.HandleFunc("/process", processHandler)
     http.HandleFunc("/view", viewHandler)
-    http.ListenAndServe(":8080", nil)
+    errs := make(chan error, 1)
+    go http.ListenAndServe(":80", http.HandlerFunc(redirectHTTP))
+    go http.ListenAndServeTLS(":443", "security/server.pem", "security/server.key", nil)
+    log.Fatal(<-errs)
 }
