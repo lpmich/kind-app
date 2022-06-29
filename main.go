@@ -65,17 +65,12 @@ func getPeople()([]Person, error) {
 }
 
 // Add a person to database
-func addPerson(person Person) (int64, error) {
-    result, err := db.Exec("INSERT INTO people (first, last, color) VALUES (?, ?, ?)",
+func addPerson(person Person) {
+    _, err := db.Exec("INSERT INTO people (first, last, color) VALUES (?, ?, ?)",
         person.First, person.Last, person.Color)
     if err != nil {
-        return 0, fmt.Errorf("Error inserting into database: ", err)
+        log.Fatal("Error inserting into database: %v", err)
     }
-    id, err := result.LastInsertId()
-    if err != nil {
-        return 0, fmt.Errorf("Error retrieving id: ", err)
-    }
-    return id, nil
 }
 
 // Serve index.html
