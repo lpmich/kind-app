@@ -5,8 +5,8 @@ import (
     "fmt"
     "net/http"
     "text/template"
-    "database/sql"
-    "github.com/go-sql-driver/mysql"
+    "github.com/lpmich/kind-app/db"
+    "github.com/lpmich/kind-app/security"
 )
 
 type Person struct {
@@ -52,16 +52,29 @@ func processHandler(w http.ResponseWriter, r *http.Request) {
     http.Redirect(w, r, "/view", 303)
 }
 
-// Serve view.html
-func viewHandler(w http.ResponseWriter, r *http.Request) {
-    people, _ := getPeople()
-    t, _ := template.ParseFiles("assets/view.html")
-    t.Execute(w, people)
+// Creates a user
+func createUserHandler(w http.ResponseWriter, r *http.Request) {
+
+    // TODO
+    username := r.FormValue("username")
+    password := r.FormValue("password")
+    err := security.Createuser(username, password)
+    if err != nil {
+        fmt.Println(err)
+    }
 }
 
-// Redirects http to https
-func redirectHTTP(w http.ResponseWriter, r *http.Request) {
-    http.Redirect(w, r, "https://localhost"+r.RequestURI, 302)
+// Authenticates a user
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+
+    // TODO 
+    username := r.FormValue("username")
+    password := r.FormValue("password")
+    err := security.Authenticate(username, password)
+    if err != nil {
+        fmt.Println(err)
+    }
+    // re-direct to user space?
 }
 
 // Serve application
@@ -80,8 +93,8 @@ func main() {
     http.HandleFunc("/", indexHandler)
     http.HandleFunc("/process", processHandler)
     http.HandleFunc("/view", viewHandler)
-    errs := make(chan error, 1)
+    http.HandleFunc("/login", loginHandler)
+    http.HandleFunc("/createuser", createUserHandler)
     go http.ListenAndServe(":80", http.HandlerFunc(redirectHTTP))
-    go http.ListenAndServeTLS(":443", "security/server.pem", "security/server.key", nil)
-    log.Fatal(<-errs)
+    log.Fatal(http.ListenAndServeTLS(":443", "security/server.pem", "security/server.key", nil))
 }
