@@ -5,6 +5,7 @@ import (
     "fmt"
     "time"
     "database/sql"
+    "github.com/google/uuid"
     "github.com/go-sql-driver/mysql"
 )
 
@@ -64,9 +65,34 @@ func initDB() error {
     if err != nil {
         return fmt.Errorf("Error creating table user: ", err)
     }
+    session := `CREATE TABLE IF NOT EXISTS session(uuid VARCHAR(50) NOT NULL,
+                username VARCHAR(50) NOT NULL, PRIMARY KEY (uuid))`
+    _, err = db.Exec(session)
+    if err != nil {
+        return fmt.Errorf("Error creating table session: ", err)
+    }
 
     fmt.Println("Database Connected!")
     return nil
+}
+
+// Returns username given a uuid 
+func GetUsername(uuid string) (string, error) {
+    var username string
+    row, err := db.Query("SELECT username FROM session WHERE uuid='"+uuid+"'")
+    if err != nil {
+        return "", fmt.Errorf("Error retrieving username from session uuid: ", err)
+    }
+    defer row.Close()
+    if row.Next() {
+        err = row.Scan(&username)
+        if err != nil {
+            return "", fmt.Errorf("Error reading rows from session table", err)
+        }
+        return username, nil
+    } else {
+        return "", fmt.Errorf("Session does not exist")
+    }
 }
 
 // Get user creds
@@ -79,20 +105,18 @@ func Getcreds(username string) (string, []byte, error) {
         return "", nil, fmt.Errorf("Error retrieving from user table: ", err)
     }
     defer rows.Close()
-    message := "Error reading rows from user table: "
     if rows.Next() {
-        err := rows.Scan(&password, &hash)
+        err = rows.Scan(&password, &hash)
         if err != nil {
-            return "", hash, fmt.Errorf(message, err)
+            return "", nil, fmt.Errorf("Error reading rows from user table: ", err)
         }
     } else {
-        return "", nil, fmt.Errorf(message, err)
+        return "", nil, fmt.Errorf("Username is incorrect.")
     }
     return password, hash, nil
 }
 
-
-// Get people
+// Gets people
 func Getpeople()([]Person, error) {
     var people []Person
 
@@ -103,7 +127,8 @@ func Getpeople()([]Person, error) {
     defer rows.Close()
     for rows.Next() {
         var person Person
-        if err := rows.Scan(&person.First, &person.Last, &person.Color); err != nil {
+        err = rows.Scan(&person.First, &person.Last, &person.Color)
+        if err != nil {
             return nil, fmt.Errorf("Error reading data: ", err)
         }
         people = append(people, person)
@@ -112,7 +137,7 @@ func Getpeople()([]Person, error) {
     return people, nil
 }
 
-// Add a person to database
+// Adds a person
 func Addperson(person Person) error {
     _, err := db.Exec("INSERT INTO person (first, last, color) VALUES (?, ?, ?)",
         person.First, person.Last, person.Color)
@@ -122,6 +147,7 @@ func Addperson(person Person) error {
     return nil
 }
 
+// Adds a user
 func Adduser(user User) error {
     _, err := db.Exec("INSERT INTO user (username, password, salt) VALUES (?, ?, ?)",
         user.Username, user.Password, user.Salt)
@@ -129,4 +155,56 @@ func Adduser(user User) error {
         return fmt.Errorf("Error inserting into user table: ", err)
     }
     return nil
+}
+
+// Adds a user's session
+func AddSession(username string) (string, error) {
+    err := DeleteSession(username)
+    if err != nil {
+        return "", err
+    }
+    var id string
+    for ; true; {
+        id = uuid.NewString()
+        row, _ := db.Query("SELECT * FROM session where uuid='"+id+"'")
+        if row.Next() {
+            // Generate new id
+        } else {
+            break
+        }
+    }
+    _, err = db.Exec("INSERT INTO session (uuid, username) VALUES (?, ?)", id, username)
+    if err != nil {
+        return "", fmt.Errorf("Error inserting into session table: ", err)
+    }
+    return id, nil
+}
+
+// Deletes a user's session
+func DeleteSession(username string) error {
+    _, err := db.Exec("DELETE FROM session WHERE username='"+username+"'")
+    if err != nil {
+        return fmt.Errorf("Error removing previous session for user "+username+": ", err)
+    }
+    return nil
+}
+
+// Determines if a session id is valid or not
+func ValidSession(uuid string) (bool, error) {
+    row, err := db.Query("SELECT uuid FROM session WHERE uuid='"+uuid+"'")
+    if err != nil {
+        return false, fmt.Errorf("Error retrieving session: ", err)
+    }
+    defer row.Close()
+    if row.Next() {
+        var id string
+        err = row.Scan(&id)
+        if err != nil {
+            return false, fmt.Errorf("Error reading from session rows: ", err)
+        }
+        if uuid == id {
+            return true, nil
+        }
+    }
+    return false, nil
 }

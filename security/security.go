@@ -19,17 +19,21 @@ func hashPassword(password string, salt []byte) string {
 }
 
 // Authenticates a user's credentials
-func Authenticate(username string, password string) error {
+func Authenticate(username string, password string) (string, error) {
     hash, salt, err := db.Getcreds(username)
     if err != nil {
-        return err
+        return "", err
     }
     hashedPassword := hashPassword(password, salt)
 
     if hashedPassword != hash {
-        return fmt.Errorf("Password is incorrect")
+        return "", fmt.Errorf("Password is incorrect")
     }
-    return nil
+    uuid, err := db.AddSession(username)
+    if err != nil {
+        return "", fmt.Errorf("Error creating session. ", err)
+    }
+    return uuid, nil
 }
 
 // Creates a new user
@@ -48,4 +52,18 @@ func Createuser(username string, password string) error {
     hash = hashPassword(password, salt)
     user := db.User{username, hash, salt}
     return db.Adduser(user)
+}
+
+// Determines if a user is authenticated or not
+func IsAuthenticated(uuid string) (bool, error) {
+    return db.ValidSession(uuid)
+}
+
+// Removes a session given a uuid
+func RemoveSession(uuid string) error {
+    username, err := db.GetUsername(uuid)
+    if err != nil {
+        return err
+    }
+    return db.DeleteSession(username)
 }
