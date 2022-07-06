@@ -1,0 +1,36 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width", intial-scale=1">
+    <title> Go App </title>
+  </head>
+  <script>
+      function validatePassword() {
+          pw = document.getElementById("password").value;
+          repw = document.getElementById("repassword").value;
+          if (pw != repw) {
+              alert("Passwords do not match.");
+              return false;
+          } else {
+              return true;
+          }
+      }
+  </script>
+  <body style="text-align:center;">
+    <h1 style="font-size:2.5em;"> Create New User </h1>
+    <form method="POST">
+
+      <label for="fname"> Username </label>
+      <input type="text" name="username" id="username" placeholder="Username" required="required" />
+
+      <label for="lname"> Password </label>
+      <input type="password" name="password" id="password" placeholder="Password" required="required"/>
+
+      <label for="lname"> Re-enter Password </label>
+      <input type="password" name="repassword" id="repassword" placeholder="Password" required="required"/>
+
+      <input type="submit" onclick="return validatePassword()"/>
+    </form>
+    <p style="color:red;" id="error"> {{ .Message }}</p>
+  </body>
+</html>

@@ -15,6 +15,10 @@ type Person struct {
     Color string
 }
 
+type HTTPError struct {
+    Message string
+}
+
 // Redirects http to https
 func redirectHTTP(w http.ResponseWriter, r *http.Request) {
     http.Redirect(w, r, "https://localhost"+r.RequestURI, 302)
@@ -22,7 +26,8 @@ func redirectHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Serve index.html
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-    http.ServeFile( w, r, "assets/index.html")
+    t, _ := template.ParseFiles("assets/index.html")
+    t.Execute(w, nil)
 }
 
 // Serve view.html
@@ -49,32 +54,57 @@ func processHandler(w http.ResponseWriter, r *http.Request) {
     person.Last = lname
     person.Color = color
     db.Addperson(person)
-    http.Redirect(w, r, "/view", 303)
+    t, _ := template.ParseFiles("assets/view.html")
+    t.Execute(w, nil)
+
 }
 
 // Creates a user
 func createUserHandler(w http.ResponseWriter, r *http.Request) {
 
-    // TODO
-    username := r.FormValue("username")
-    password := r.FormValue("password")
-    err := security.Createuser(username, password)
-    if err != nil {
-        fmt.Println(err)
+    if r.Method == "GET" {
+        t, _ := template.ParseFiles("assets/createuser.html")
+        t.Execute(w, nil)
+    }
+    if r.Method == "POST" {
+        username := r.FormValue("username")
+        password := r.FormValue("password")
+        err := security.Createuser(username, password)
+        if err != nil {
+            fmt.Println(err)
+            httpError := HTTPError{
+                Message: err.Error(),
+            }
+            t, _ := template.ParseFiles("assets/createuser.html")
+            t.Execute(w, httpError)
+        } else {
+            http.Redirect(w, r, "https://localhost/login", 303)
+        }
     }
 }
 
 // Authenticates a user
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 
-    // TODO 
-    username := r.FormValue("username")
-    password := r.FormValue("password")
-    err := security.Authenticate(username, password)
-    if err != nil {
-        fmt.Println(err)
+    if r.Method == "GET" {
+        t, _ := template.ParseFiles("assets/login.html")
+        t.Execute(w, nil)
     }
-    // re-direct to user space?
+    if r.Method == "POST" {
+        username := r.FormValue("username")
+        password := r.FormValue("password")
+        err := security.Authenticate(username, password)
+        if err != nil {
+            fmt.Println(err)
+            httpError := HTTPError{
+                Message: "Username or Password is incorrect.",
+            }
+            t, _ := template.ParseFiles("assets/login.html")
+            t.Execute(w, httpError)
+        } else {
+            http.Redirect(w, r, "https://localhost", 303)
+        }
+    }
 }
 
 // Serve application
