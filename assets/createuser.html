@@ -3,6 +3,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width", intial-scale=1">
     <title> Go App </title>
+    <link rel="stylesheet"
+          href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
+          crossorigin="anonymous" />
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+            integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+            crossorigin="anonymous">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
+        integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+        crossorigin="anonymous">
+    </script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
+            integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+            crossorigin="anonymous">
+    </script>
   </head>
   <script>
       function validatePassword() {
@@ -16,21 +32,52 @@
           }
       }
   </script>
+  <style>
+    body {
+      background-image: url("https://workforcesouthplains.org/wp-content/uploads/2019/06/Background-opera-speeddials-community-web-simple-backgrounds.jpg");
+    }
+    .create-container {
+      display: flex;
+      justify-content: center;
+      margin-top: 2em;
+    }
+    #create-panel {
+      padding-left: 1.2em;
+      padding-right: 1.2em;
+    }
+    #submit {
+      padding-left: 1.5em;
+      padding-right: 1.5em;
+    }
+  </style>
   <body style="text-align:center;">
-    <h1 style="font-size:2.5em;"> Create New User </h1>
-    <form method="POST">
-
-      <label for="fname"> Username </label>
-      <input type="text" name="username" id="username" placeholder="Username" required="required" />
-
-      <label for="lname"> Password </label>
-      <input type="password" name="password" id="password" placeholder="Password" required="required"/>
-
-      <label for="lname"> Re-enter Password </label>
-      <input type="password" name="repassword" id="repassword" placeholder="Password" required="required"/>
-
-      <input type="submit" onclick="return validatePassword()"/>
-    </form>
-    <p style="color:red;" id="error"> {{ .Message }}</p>
+    <h1 style="margin-top:.5em;font-size:2.5em;"> Create New User </h1>
+    <div class="create-container">
+      <div class="card login-card" id="create-panel">
+        <div class="card-body">
+          <form method="Post" style="margin-bottom: 1em;">
+            <div class="form-group">
+              <label> Username </label>
+              <input type="text" class="form-control" id="username" required="required">
+            </div>
+            <div class="form-group">
+              <label> Password </label>
+              <input type="password" class="form-control" id="password" required="required">
+            </div>
+            <div class="form-group">
+              <label> Re-enter Password </label>
+              <input type="password" class="form-control" id="repassword" required="required">
+            </div>
+            <p style="color:red;" id="error"> {{ .Message }} </p>
+            <button type="submit" class="btn btn-primary" id="submit"
+                    onclick="return validatePassword()"> Register </button>
+          </form>
+          <p style="font-size: 1em;">
+            Already have an account?
+            <a href="https://localhost/login">Login </a>
+          </p>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
