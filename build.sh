@@ -1,9 +1,9 @@
 echo "Starting to build Kind App"
 
-if [ ! -e "security/server.pem" ]
-then
-    source ./security/gen_certs.sh
-fi
+#if [ ! -e "security/server.pem" ]
+#then
+#    source ./security/gen_certs.sh
+#fi
 
 docker build . -t kind-app
 kind create cluster --config=config/cluster.yml

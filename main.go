@@ -176,5 +176,5 @@ func main() {
     http.HandleFunc("/logout", logout)
     http.HandleFunc("/createuser", createUser)
     go http.ListenAndServe(":80", http.HandlerFunc(redirectHTTP))
-    log.Fatal(http.ListenAndServeTLS(":443", "security/server.pem", "security/server.key", nil))
+    log.Fatal(http.ListenAndServeTLS(":443", "security/server.crt", "security/server.key", nil))
 }

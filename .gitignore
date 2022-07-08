@@ -1,4 +1,4 @@
 main
 security/server.key
-security/server.pem
+security/server.crt
 config/mysql-secret.yml
