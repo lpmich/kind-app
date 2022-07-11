@@ -4,6 +4,7 @@ import (
     "os"
     "fmt"
     "time"
+    "strconv"
     "database/sql"
     "github.com/google/uuid"
     "github.com/go-sql-driver/mysql"
@@ -21,6 +22,22 @@ type User struct {
     Username string
     Password string
     Salt []byte
+}
+
+type Post struct {
+    Content string
+    Author string
+    Date time.Time
+    Likes int
+    Comments []Comment
+    Id int
+}
+
+type Comment struct {
+    Content string
+    Author string
+    Date time.Time
+    Likes int
 }
 
 // Try to connect to database 10 times
@@ -43,7 +60,8 @@ func initDB() error {
         User: "root",
         Passwd: os.Getenv("MYSQL_ROOT_PASSWORD"),
         Net: "tcp",
-        Addr: os.Getenv("MYSQL_URL")+":3306"}
+        Addr: os.Getenv("MYSQL_URL")+":3306",
+        ParseTime: true}
     var err error
     db, err = sql.Open("mysql", cfg.FormatDSN())
     if err != nil {
@@ -71,6 +89,22 @@ func initDB() error {
     if err != nil {
         return fmt.Errorf("Error creating table session: ", err)
     }
+    post := `CREATE TABLE IF NOT EXISTS post(content VARCHAR(1000) NOT NULL,
+             author VARCHAR(50) NOT NULL, date DATETIME DEFAULT CURRENT_TIMESTAMP,
+             likes INTEGER NOT NULL DEFAULT 0, id INTEGER AUTO_INCREMENT, PRIMARY KEY (id))`
+    _, err = db.Exec(post)
+    if err != nil {
+        return fmt.Errorf("Error creating table post: ", err)
+    }
+    comment := `CREATE TABLE IF NOT EXISTS comment(content VARCHAR(500) NOT NULL,
+                author VARCHAR(50) NOT NULL, date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                likes INTEGER NOT NULL DEFAULT 0, post_id INT NOT NULL,
+                id INTEGER AUTO_INCREMENT,PRIMARY KEY (id),
+                FOREIGN KEY (post_id) REFERENCES post(id) ON DELETE CASCADE ON UPDATE CASCADE)`
+    _, err = db.Exec(comment)
+    if err != nil {
+        return fmt.Errorf("Error creating table comment: ", err)
+    }
 
     fmt.Println("Database Connected!")
     return nil
@@ -96,7 +130,7 @@ func GetUsername(uuid string) (string, error) {
 }
 
 // Get user creds
-func Getcreds(username string) (string, []byte, error) {
+func GetCreds(username string) (string, []byte, error) {
     var password string
     var hash []byte
     query := "SELECT password, salt FROM user WHERE username='" + username + "'"
@@ -135,6 +169,45 @@ func Getpeople()([]Person, error) {
     }
 
     return people, nil
+}
+
+// Get comments for a given post
+func GetComments(id int) ([]Comment, error) {
+    var comments []Comment
+    rows, err := db.Query("SELECT content, author, date, likes FROM comment WHERE post_id='"+
+        strconv.Itoa(id)+"'")
+    if err != nil {
+        return nil, fmt.Errorf("Error retrieving from comment table: ", err)
+    }
+    defer rows.Close()
+    for rows.Next() {
+        var comment Comment
+        err = rows.Scan(&comment.Content, &comment.Author, &comment.Date, &comment.Likes)
+        if err != nil {
+            return nil, fmt.Errorf("Error reading data: ", err)
+        }
+        comments = append(comments, comment)
+    }
+    return comments, nil
+}
+
+// Get all posts in the system
+func GetAllPosts() ([]Post, error) {
+    var posts []Post
+    rows, err := db.Query("SELECT content, author, date, likes, id FROM post")
+    if err != nil {
+        return nil, fmt.Errorf("Error retrieving from post table: ", err)
+    }
+    defer rows.Close()
+    for rows.Next() {
+        var post Post
+        err = rows.Scan(&post.Content, &post.Author, &post.Date, &post.Likes, &post.Id)
+        if err != nil {
+            return nil, fmt.Errorf("Error reading data: ", err)
+        }
+        posts = append(posts, post)
+    }
+    return posts, nil
 }
 
 // Adds a person
@@ -207,4 +280,111 @@ func ValidSession(uuid string) (bool, error) {
         }
     }
     return false, nil
+}
+
+// Gets the author of a post or comment
+func GetAuthor(entity string, id int) (string, error) {
+    var author string
+    row, err := db.Query("SELECT author FROM "+entity+" WHERE id='"+strconv.Itoa(id)+"'")
+    if err != nil {
+        return "", err
+    }
+    defer row.Close()
+    if row.Next() {
+        err = row.Scan(&author)
+        if err != nil {
+            return "", fmt.Errorf("Error reading from author rows: ", err)
+        }
+    } else {
+        return "", fmt.Errorf(entity+" with id:"+strconv.Itoa(id)+" does not exist")
+    }
+    return author, nil
+}
+
+func GetPostIDFromCommentID(commentID int) (int, error) {
+    var postID int
+    row, err := db.Query("SELECT post_id FROM comment WHERE id='"+strconv.Itoa(commentID)+"'")
+    if err != nil {
+        return 0, err
+    }
+    defer row.Close()
+    if row.Next() {
+        err = row.Scan(&postID)
+        if err != nil {
+            return 0, fmt.Errorf("Error reading from comment rows: ", err)
+        }
+    } else {
+        return 0, fmt.Errorf("Comment "+strconv.Itoa(commentID)+" cannot be linked to a post")
+    }
+    return postID, nil
+}
+
+// Adds a post
+func AddPost(content string, author string) error {
+    _, err := db.Exec("INSERT INTO post (content, author) VALUES (?, ?)", content, author)
+    return err
+}
+
+// Deletes a post
+func DeletePost(id int) error {
+    _, err := db.Exec("DELETE FROM post WHERE id='"+strconv.Itoa(id)+"'")
+    return err
+}
+
+// Adds a comment to a post
+func AddComment(content string, author string, post_id int) error {
+    _, err := db.Exec("INSERT INTO comment (content, author, post_id) VALUES (?, ?, ?)",
+        content, author, post_id)
+    return err
+}
+
+// Deletes a comment from a post
+func DeleteComment(id int) error {
+    _, err := db.Exec("DELETE FROM comment WHERE id='"+strconv.Itoa(id)+"'")
+    return err
+}
+
+// Returns the number of likes associate with a post or comment
+func GetLikes(entity string, id int) (int, error) {
+    var num_likes int
+    row, err := db.Query("SELECT likes FROM "+entity+" WHERE id='"+strconv.Itoa(id)+"'")
+    if err != nil {
+        return 0, err
+    }
+    defer row.Close()
+    if row.Next() {
+        err = row.Scan(&num_likes)
+        if err != nil {
+            return 0, fmt.Errorf("Error reading from "+entity+" row: ", err)
+        }
+    } else {
+        return 0, fmt.Errorf(entity+" with id:"+strconv.Itoa(id)+" not found")
+    }
+    return num_likes, nil
+}
+
+// Likes a post or comment
+func Like(entity string, id int) error {
+    num_likes, err := GetLikes(entity, id)
+    num_likes++
+    if err != nil {
+        return err
+    }
+    _, err = db.Exec("UPDATE "+entity+" SET likes="+strconv.Itoa(num_likes)+
+        " WHERE id='"+strconv.Itoa(id)+"'")
+    return err
+}
+
+// Dislikes a post or comment
+func Dislike(entity string, id int) error {
+    num_likes, err := GetLikes(entity, id)
+    if err != nil {
+        return err
+    }
+    if num_likes > 0 {
+        num_likes--
+    }
+    _, err = db.Exec("UPDATE "+entity+" SET likes="+strconv.Itoa(num_likes)+
+        " WHERE id='"+strconv.Itoa(id)+"'")
+    return err
 }

@@ -3,6 +3,7 @@ package main
 import (
     "log"
     "fmt"
+    "strconv"
     "net/http"
     "text/template"
     "github.com/lpmich/kind-app/db"
@@ -12,6 +13,10 @@ import (
 type HTMLData struct {
     People []db.Person
     Username string
+}
+
+type IndexData struct {
+    Posts []db.Post
 }
 
 type HTTPError struct {
@@ -53,24 +58,19 @@ func index(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if r.Method == "GET" {
-        t, _ := template.ParseFiles("assets/index.html")
-        t.Execute(w, nil)
+    var data IndexData
+    posts, err := db.GetAllPosts()
+    if err != nil {
+        fmt.Println(err)
+        return
     }
-
-    if r.Method == "POST" {
-        fname := r.FormValue("first")
-        lname := r.FormValue("last")
-        color := r.FormValue("color")
-
-        // Add person to database
-        var person db.Person
-        person.First = fname
-        person.Last = lname
-        person.Color = color
-        db.Addperson(person)
-        http.Redirect(w, r, "https://localhost/view", 303)
+    for _, post := range posts {
+        comments, _ := db.GetComments(post.Id)
+        post.Comments = comments
     }
+    data.Posts = posts
+    t, _ := template.ParseFiles("assets/index.html")
+    t.Execute(w, data)
 }
 
 // Serve view.html
@@ -145,6 +145,7 @@ func login(w http.ResponseWriter, r *http.Request) {
     }
 }
 
+// Logs a user out of their current session
 func logout(w http.ResponseWriter, r *http.Request) {
     if !isAuthenticated(r) {
         http.Redirect(w, r, "https://localhost/login", 303)
@@ -155,6 +156,130 @@ func logout(w http.ResponseWriter, r *http.Request) {
         fmt.Println(err)
     }
     http.Redirect(w, r, "https://localhost/login", 303)
+}
+
+// Creates a new post
+func post(w http.ResponseWriter, r *http.Request) {
+    if !isAuthenticated(r) {
+        http.Redirect(w, r, "https://localhost/login", 303)
+    }
+    uuid := getSessionID(r)
+    author, err := db.GetUsername(uuid)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    content := r.FormValue("content")
+    err = db.AddPost(content, author)
+    if err != nil {
+        fmt.Println(err)
+    }
+    http.Redirect(w, r, "https://localhost/", 303)
+}
+
+// Removes a post
+func removePost(w http.ResponseWriter, r *http.Request) {
+    if !isAuthenticated(r) {
+        http.Redirect(w, r, "https://localhost/login", 303)
+    }
+    uuid := getSessionID(r)
+    username, err := db.GetUsername(uuid)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    id, _ := strconv.Atoi(r.FormValue("postid"))
+    author, err := db.GetAuthor("post", id)
+    if author != username {
+        fmt.Println("User: "+username+" is not authorized to delete "+author+"'s post")
+        return
+    }
+    err = db.DeletePost(id)
+    if err != nil {
+        fmt.Println(err)
+    }
+}
+
+// Creates a new comment
+func comment(w http.ResponseWriter, r *http.Request) {
+    if !isAuthenticated(r) {
+        http.Redirect(w, r, "https://localhost/login", 303)
+    }
+    uuid := getSessionID(r)
+    author, err := db.GetUsername(uuid)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    id, _ := strconv.Atoi(r.FormValue("postid"))
+    content := r.FormValue("content")
+    err = db.AddComment(content, author, id)
+    if err != nil {
+        fmt.Println(err)
+    }
+}
+
+// Removes a comment
+func removeComment(w http.ResponseWriter, r *http.Request) {
+    if !isAuthenticated(r) {
+        http.Redirect(w, r, "https://localhost/login", 303)
+    }
+    uuid := getSessionID(r)
+    username, err := db.GetUsername(uuid)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    id, _ := strconv.Atoi(r.FormValue("commentid"))
+    commentAuthor, err := db.GetAuthor("comment", id)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    postID, err := db.GetPostIDFromCommentID(id)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    postAuthor, err := db.GetAuthor("post", postID)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    if commentAuthor != username || postAuthor != username {
+        fmt.Println("User: "+username+" is not authorized to delete "+commentAuthor+"'s comment")
+        return
+    }
+    err = db.DeleteComment(id)
+    if err != nil {
+        fmt.Println(err)
+    }
+}
+
+// Likes a post/comment
+func like(w http.ResponseWriter, r *http.Request) {
+    if !isAuthenticated(r) {
+        http.Redirect(w, r, "https://localhost/login", 303)
+    }
+    entity := r.FormValue("entity")
+    id, _ := strconv.Atoi(r.FormValue("id"))
+    err := db.Like(entity, id)
+    if err != nil {
+        fmt.Println(err)
+    }
+}
+
+// Dislikes a post/comment
+func dislike(w http.ResponseWriter, r *http.Request) {
+    if !isAuthenticated(r) {
+        http.Redirect(w, r, "https://localhost/login", 303)
+    }
+    entity := r.FormValue("entity")
+    id, _ := strconv.Atoi(r.FormValue("id"))
+    err := db.Dislike(entity, id)
+    if err != nil {
+        fmt.Println(err)
+    }
 }
 
 // Serve application
@@ -171,10 +296,16 @@ func main() {
     // Listen for http/s requests
     fmt.Println("Serving Application...")
     http.HandleFunc("/", index)
-    http.HandleFunc("/view", view)
+    http.HandleFunc("/createuser", createUser)
     http.HandleFunc("/login", login)
     http.HandleFunc("/logout", logout)
-    http.HandleFunc("/createuser", createUser)
+    http.HandleFunc("/post", post)
+    http.HandleFunc("/removepost", removePost)
+    http.HandleFunc("/comment", comment)
+    http.HandleFunc("/removecomment", removeComment)
+    http.HandleFunc("/like", like)
+    http.HandleFunc("/dislike", dislike)
+    http.HandleFunc("/view", view)
     go http.ListenAndServe(":80", http.HandlerFunc(redirectHTTP))
     log.Fatal(http.ListenAndServeTLS(":443", "security/server.crt", "security/server.key", nil))
 }

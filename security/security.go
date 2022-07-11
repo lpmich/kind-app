@@ -20,7 +20,7 @@ func hashPassword(password string, salt []byte) string {
 
 // Authenticates a user's credentials
 func Authenticate(username string, password string) (string, error) {
-    hash, salt, err := db.Getcreds(username)
+    hash, salt, err := db.GetCreds(username)
     if err != nil {
         return "", err
     }
@@ -38,7 +38,7 @@ func Authenticate(username string, password string) (string, error) {
 
 // Creates a new user
 func Createuser(username string, password string) error {
-    hash, salt, _ := db.Getcreds(username)
+    hash, salt, _ := db.GetCreds(username)
     if hash != "" {
         return fmt.Errorf("User already exists")
     }
