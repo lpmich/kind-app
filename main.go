@@ -64,11 +64,14 @@ func index(w http.ResponseWriter, r *http.Request) {
         fmt.Println(err)
         return
     }
+    /*
     for _, post := range posts {
         comments, _ := db.GetComments(post.Id)
         post.Comments = comments
     }
+    */
     data.Posts = posts
+
     t, _ := template.ParseFiles("assets/index.html")
     t.Execute(w, data)
 }

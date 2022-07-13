@@ -46,11 +46,11 @@
           <form method="Post" style="margin-bottom: 1em;">
             <div class="form-group">
               <label> Username </label>
-              <input type="text" class="form-control" id="username" required="required">
+              <input type="text" class="form-control" name="username" id="username" required="required">
             </div>
             <div class="form-group">
               <label> Password </label>
-              <input type="password" class="form-control" id="password" required="required">
+              <input type="password" class="form-control" name="password" id="password" required="required">
             </div>
             <p style="color:red;" id="error"> {{ .Message }}</p>
             <button type="submit" class="btn btn-primary" id="submit"> Login </button>
