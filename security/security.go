@@ -2,7 +2,7 @@ package security
 
 import (
     "fmt"
-    "github.com/lpmich/kind-app/db"
+    "gitlab.sas.com/lomich/kind-app/db"
     "crypto/rand"
     "crypto/sha512"
     "encoding/base64"

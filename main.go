@@ -6,8 +6,9 @@ import (
     "strconv"
     "net/http"
     "text/template"
-    "github.com/lpmich/kind-app/db"
-    "github.com/lpmich/kind-app/security"
+    "gitlab.sas.com/lomich/kind-app/db"
+    "gitlab.sas.com/lomich/kind-app/api"
+    "gitlab.sas.com/lomich/kind-app/security"
 )
 
 type HTMLData struct {
@@ -308,5 +309,6 @@ func main() {
     http.HandleFunc("/dislike", dislike)
     http.HandleFunc("/view", view)
     go http.ListenAndServe(":80", http.HandlerFunc(redirectHTTP))
+    go api.StartAPI()
     log.Fatal(http.ListenAndServeTLS(":443", "security/server.crt", "security/server.key", nil))
 }

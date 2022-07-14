@@ -210,6 +210,25 @@ func GetAllPosts() ([]Post, error) {
     return posts, nil
 }
 
+// Retrieves a post with a given id
+func GetPost(id string) (Post, error) {
+    var post Post
+    row, err := db.Query("SELECT content, author, date, likes, id FROM post WHERE id='"+id+"'")
+    if err != nil {
+        return post, fmt.Errorf("Error retrieving from post table: ", err)
+    }
+    defer row.Close()
+    if row.Next() {
+        err = row.Scan(&post.Content, &post.Author, &post.Date, &post.Likes, &post.Id)
+        if err != nil {
+            return post, fmt.Errorf("Error reading data: ", err)
+        }
+    } else {
+        return post, fmt.Errorf("Post "+id+" does not exist.")
+    }
+    return post, nil
+}
+
 // Adds a person
 func Addperson(person Person) error {
     _, err := db.Exec("INSERT INTO person (first, last, color) VALUES (?, ?, ?)",

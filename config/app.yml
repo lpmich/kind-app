@@ -15,6 +15,10 @@ spec:
       name: https
       port: 443
       nodePort: 30999
+    - protocol: TCP
+      name: api
+      port: 8080
+      nodePort: 31111
 ---
 apiVersion: apps/v1
 kind: Deployment
