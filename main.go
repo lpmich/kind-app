@@ -12,11 +12,8 @@ import (
 
 type HTMLData struct {
     People []db.Person
-    Username string
-}
-
-type IndexData struct {
     Posts []db.Post
+    Username string
 }
 
 type HTTPError struct {
@@ -58,7 +55,7 @@ func index(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    var data IndexData
+    var data HTMLData
     posts, err := db.GetAllPosts()
     if err != nil {
         fmt.Println(err)
@@ -71,6 +68,7 @@ func index(w http.ResponseWriter, r *http.Request) {
     }
     */
     data.Posts = posts
+    data.Username, _ = db.GetUsername(getSessionID(r))
 
     t, _ := template.ParseFiles("assets/index.html")
     t.Execute(w, data)
