@@ -9,7 +9,7 @@ A simple golang web application deployed through [Kind Kubernetes](https://kind.
 
 ### Installation
 ```bash
-git pull https://github.com/lpmich/kind-app.git
+git pull https://gitlab.sas.com/lomich/kind-app.git
 cd kind-app/
 ```
 
