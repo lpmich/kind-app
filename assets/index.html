@@ -141,13 +141,13 @@
 
       <div class="posts-container">
 
-        <!-- Post #1 -->
+        {{ range .Posts }}
         <div class="post">
           <div class="post-header">
-              <h5> Camille says: </h5>
-            <p style=""> 7/12/22 12:48PM </p>
+              <h5> {{.Author}} says: </h5>
+              <p style=""> {{.Date}} </p>
           </div>
-          <p class="post-content"> Making a website </p>
+          <p class="post-content"> {{.Content}} </p>
           <div class="post-footer">
             <span style="margin-right: auto;">
               comments (0)
@@ -182,90 +182,8 @@
             </div>
           </div>
         </div>
+        {{end}}
 
-        <!-- Post #2 -->
-        <div class="post">
-          <div class="post-header">
-              <h5> Logan says: </h5>
-            <p style=""> 7/7/22 11:30am </p>
-          </div>
-          <p class="post-content"> Is anyone out there? </p>
-          <div class="post-footer">
-            <span style="margin-right: auto;">
-              comments (0)
-              <button onclick="" style="all:unset;cursor:pointer;">
-                <i class="fa-solid fa-angle-down"></i>
-              </button>
-            </span>
-            <span style="font-size: 1.5em;"> 20 </span>
-            <a href="https://localhost/like?entity=post&id=">
-              <i class="fa fa-thumbs-up like" aria-hidden="true"></i>
-            </a>
-            <a href="https://localhost/dislike?entity=post&id=">
-              <i class="fa fa-thumbs-down like" aria-hidden="true"></i>
-            </a>
-          </div>
-          <div class="comments" id="comments-" style="display:none;transform: scale(.9);">
-            <div class="comment" style="display:none;">
-              <div class="post-header">
-                <h5> Logan says:</h5>
-                <p style=""> 2022-07-12 13:26:38 +0000 UTC </p>
-              </div>
-              <p class="post-content"> Is anyone out there?</p>
-              <div class="post-footer">
-                <span style="font-size: 1.5em;"> 0 </span>
-                <a href="https://localhost/like?entity=post&id">
-                  <i class="fa fa-thumbs-up like" aria-hidden="true"></i>
-                </a>
-                <a href="https://localhost/dislike?entity=post&id=">
-                  <i class="fa fa-thumbs-down like" aria-hidden="true"></i>
-                </a>
-              </div>
-            </div>
-          </div>          
-        </div>
-
-        <!-- Post #3 -->
-        <div class="post">
-          <div class="post-header">
-              <h5> Zeus says: </h5>
-            <p style=""> 2/08/01 3:29PM </p>
-          </div>
-          <p class="post-content"> First post ever </p>
-          <div class="post-footer">
-            <span style="margin-right: auto;">
-              comments (0)
-              <button onclick="" style="all:unset;cursor:pointer;">
-                <i class="fa-solid fa-angle-down"></i>
-              </button>
-            </span>
-            <span style="font-size: 1.5em;"> 57 </span>
-            <a href="https://localhost/like?entity=post&id=">
-              <i class="fa fa-thumbs-up like" aria-hidden="true"></i>
-            </a>
-            <a href="https://localhost/dislike?entity=post&id=">
-              <i class="fa fa-thumbs-down like" aria-hidden="true"></i>
-            </a>
-          </div>
-          <div class="comments" id="comments-" style="display:none;transform: scale(.9);">
-            <div class="comment" style="display:none;">
-              <div class="post-header">
-                <h5> Logan says:</h5>
-                <p style=""> 2022-07-12 13:26:38 +0000 UTC </p>
-              </div>
-              <p class="post-content"> Is anyone out there?</p>
-              <div class="post-footer">
-                <span style="font-size: 1.5em;"> 0 </span>
-                <a href="https://localhost/like?entity=post&id">
-                  <i class="fa fa-thumbs-up like" aria-hidden="true"></i>
-                </a>
-                <a href="https://localhost/dislike?entity=post&id=">
-                  <i class="fa fa-thumbs-down like" aria-hidden="true"></i>
-                </a>
-              </div>
-            </div>
-          </div>          
-        </div>
       </div>
     </div>
   </body>

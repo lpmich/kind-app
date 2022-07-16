@@ -194,7 +194,7 @@ func GetComments(id int) ([]Comment, error) {
 // Get all posts in the system
 func GetAllPosts() ([]Post, error) {
     var posts []Post
-    rows, err := db.Query("SELECT content, author, date, likes, id FROM post")
+    rows, err := db.Query("SELECT content, author, date, likes, id FROM post ORDER BY date DESC")
     if err != nil {
         return nil, fmt.Errorf("Error retrieving from post table: ", err)
     }
