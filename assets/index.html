@@ -4,6 +4,10 @@
     <meta name="viewport" content="width=device-width", intial-scale=1">
     <title> Go App </title>
     <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css"
+          integrity="sha512-KfkfwYDsLkIlwQp6LFnl8zNdLGxu9YAA1QvwINks4PhcElQSvqcyVLLD9aMhXd13uQjoXtEKNosOWaZqXgel0g=="
+          crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet"
           href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
           integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
           crossorigin="anonymous" />
@@ -61,7 +65,7 @@
       color: black;
       opacity: .7;
       border-radius: .8em;
-      height: 220px;
+      height: 240px;
       width: 800px;
       margin-bottom: 30em;
     }
@@ -87,6 +91,9 @@
       padding-bottom: .5em;
       margin-bottom: 2em;
     }
+    .Comment {
+        min-width: 500px;
+    }
     .post-content {
       margin-left: 1em;
       padding: 1em;
@@ -96,6 +103,7 @@
     .post-header {
       display: flex;
       justify-content: space-between;
+      align-items: center;
     }
     .post-footer {
       display: flex;
@@ -114,6 +122,22 @@
       function hideForm() {
         document.getElementById("new-post").style.display = 'none';
       }
+      function addComment(id) {
+        document.getElementById(id).style.display='inline-block';
+      }
+      function cancelComment(id) {
+        document.getElementById(id).style.display='none';
+      }
+      function showComments(id) {
+        document.getElementById(id).style.display='inline-block';
+        document.getElementById('show-'+id).style.display='none';
+        document.getElementById('hide-'+id).style.display='inline-block';
+      }
+      function hideComments(id) {
+        document.getElementById(id).style.display = 'none';
+        document.getElementById('hide-'+id).style.display='none';
+        document.getElementById('show-'+id).style.display='inline-block';
+      }
   </script>
   <body style="text-align:center;margin:0;">
     <nav>
@@ -124,62 +148,90 @@
     <h1 style="font-size:3em;margin:.7em;color:white;"> Go Application </h1>
     <div class="page-container">
 
-        <h2 style="grid-column: 1/2;color:white;"> Welcome, {{.Username}} </h2>
+      <h2 style="grid-column: 1/2;color:white;"> Welcome, {{.Username}} </h2>
       <button id="add-button" class="btn btn-primary" onclick="showForm()">
         <b>+</b> New Post
       </button>
       <div id="new-post" style="display:none;">
+        <button id="cancel" onclick="hideForm()" style="all:unset;cursor:pointer;float:right;margin-right:.5em;margin-top:.5em;">
+          <i class="fa fa-times"></i>
+        </button>
         <form method="POST" action="post">
           <div class="form-group">
             <textarea name="content" id="content" class="form-control"
                 placeholder="Post here" rows="5" cols="50" ></textarea>
           </div>
-          <button class="btn" id="cancel" onclick="hideForm()"> Cancel </button>
           <button type="submit" class="btn btn-success" id="submit"> Post </button>
         </form>
       </div>
 
       <div class="posts-container">
 
-        {{ range .Posts }}
+        {{ range $index, $element := .Posts }}
         <div class="post">
           <div class="post-header">
-              <h5> {{.Author}} says: </h5>
-              <p style=""> {{.Date}} </p>
+              <h5> {{$element.Author}} says: </h5>
+              <p style=""> {{$element.Date}} </p>
           </div>
-          <p class="post-content"> {{.Content}} </p>
+          <p class="post-content"> {{$element.Content}} </p>
           <div class="post-footer">
             <span style="margin-right: auto;">
-              comments (0)
-              <button onclick="" style="all:unset;cursor:pointer;">
+              comments ({{$element.NumComments}})
+              <button id="show-comments-{{$index}}" onclick="showComments('comments-{{$index}}')"
+                  style="all:unset;cursor:pointer;">
                 <i class="fa-solid fa-angle-down"></i>
               </button>
+              <button id="hide-comments-{{$index}}" onclick="hideComments('comments-{{$index}}')"
+                  style="all:unset;cursor:pointer;display:none;">
+                <i class="fa-solid fa-angle-up"></i>
+              </button>
             </span>
-            <span style="font-size: 1.5em;"> 10 </span>
-            <a href="https://localhost/like?entity=post&id=">
+            <span style="font-size: 1.5em;"> {{ $element.Likes }} </span>
+            <a href="https://localhost/like?entity=post&id={{$element.Id}}">
               <i class="fa fa-thumbs-up like" aria-hidden="true"></i>
             </a>
-            <a href="https://localhost/dislike?entity=post&id=">
+            <a href="https://localhost/dislike?entity=post&id={{$element.Id}}">
               <i class="fa fa-thumbs-down like" aria-hidden="true"></i>
             </a>
           </div>
-          <div class="comments" id="comments-" style="display:none;transform: scale(.9);">
-            <div class="comment" style="display:none;">
+          <div class="comments" id="comments-{{$index}}" style="display:none;transform: scale(.9);">
+
+            <button id="add-comment-{{$index}}" class="btn btn-primary" onclick="addComment('new-comment-{{$index}}')" style="margin-bottom:1em;">
+            <b>+</b> Add Comment
+            </button>
+            <div id="new-comment-{{$index}}" style="display:none;">
+                <button id="cancel" onclick="cancelComment('new-comment-{{$index}}')"
+                  style="all:unset;cursor:pointer;margin-right:.5em;float:right;margin-top:.5em;">
+                <i class="fa fa-times"></i>
+              </button>
+              <form method="POST" action="comment">
+                <div class="form-group">
+                  <textarea name="content" id="content" name="content" class="form-control"
+                      placeholder="Post here" rows="5" cols="50" ></textarea>
+                  <input style="display:none;" value="{{$element.Id}}" id="postid" name="postid" />
+                </div>
+                <button type="submit" class="btn btn-success" id="submit"> Post </button>
+              </form>
+            </div>
+
+            {{ range $i, $comment := $element.Comments }}
+            <div class="comment" id="comment-{{$i}}">
               <div class="post-header">
-                <h5> Logan says:</h5>
-                <p style=""> 2022-07-12 13:26:38 +0000 UTC </p>
+                  <h5> {{$comment.Author}} says:</h5>
+                  <p style=""> {{$comment.Date}} </p>
               </div>
-              <p class="post-content"> Is anyone out there?</p>
+              <p class="post-content" style="margin-bottom:0em;"> {{$comment.Content}}</p>
               <div class="post-footer">
-                <span style="font-size: 1.5em;"> 0 </span>
-                <a href="https://localhost/like?entity=post&id">
+                  <span style="font-size: 1.5em;"> {{$comment.Likes}} </span>
+                  <a href="https://localhost/like?entity=comment&id={{$comment.Id}}">
                   <i class="fa fa-thumbs-up like" aria-hidden="true"></i>
                 </a>
-                <a href="https://localhost/dislike?entity=post&id=">
+                <a href="https://localhost/dislike?entity=comment&id={{$comment.Id}}">
                   <i class="fa fa-thumbs-down like" aria-hidden="true"></i>
                 </a>
               </div>
             </div>
+            {{end}}
           </div>
         </div>
         {{end}}

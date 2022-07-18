@@ -62,16 +62,17 @@ func index(w http.ResponseWriter, r *http.Request) {
         fmt.Println(err)
         return
     }
-    /*
+    var postsWithComments []db.Post
     for _, post := range posts {
         comments, _ := db.GetComments(post.Id)
         post.Comments = comments
+        postsWithComments = append(postsWithComments, post)
     }
-    */
-    data.Posts = posts
+    data.Posts = postsWithComments
     data.Username, _ = db.GetUsername(getSessionID(r))
 
     t, _ := template.ParseFiles("assets/index.html")
+    fmt.Println(data)
     t.Execute(w, data)
 }
 
@@ -219,6 +220,7 @@ func comment(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         fmt.Println(err)
     }
+    http.Redirect(w, r, "https://localhost", 303)
 }
 
 // Removes a comment
@@ -263,12 +265,13 @@ func like(w http.ResponseWriter, r *http.Request) {
     if !isAuthenticated(r) {
         http.Redirect(w, r, "https://localhost/login", 303)
     }
-    entity := r.FormValue("entity")
-    id, _ := strconv.Atoi(r.FormValue("id"))
+    entity  := r.URL.Query().Get("entity")
+    id  := r.URL.Query().Get("id")
     err := db.Like(entity, id)
     if err != nil {
         fmt.Println(err)
     }
+    http.Redirect(w, r, "https://localhost", 303)
 }
 
 // Dislikes a post/comment
@@ -276,12 +279,13 @@ func dislike(w http.ResponseWriter, r *http.Request) {
     if !isAuthenticated(r) {
         http.Redirect(w, r, "https://localhost/login", 303)
     }
-    entity := r.FormValue("entity")
-    id, _ := strconv.Atoi(r.FormValue("id"))
+    entity  := r.URL.Query().Get("entity")
+    id  := r.URL.Query().Get("id")
     err := db.Dislike(entity, id)
     if err != nil {
         fmt.Println(err)
     }
+    http.Redirect(w, r, "https://localhost", 303)
 }
 
 // Serve application

@@ -29,6 +29,7 @@ type Post struct {
     Author string
     Date time.Time
     Likes int
+    NumComments int
     Comments []Comment
     Id int
 }
@@ -38,6 +39,7 @@ type Comment struct {
     Author string
     Date time.Time
     Likes int
+    Id int
 }
 
 // Try to connect to database 10 times
@@ -91,7 +93,8 @@ func initDB() error {
     }
     post := `CREATE TABLE IF NOT EXISTS post(content VARCHAR(1000) NOT NULL,
              author VARCHAR(50) NOT NULL, date DATETIME DEFAULT CURRENT_TIMESTAMP,
-             likes INTEGER NOT NULL DEFAULT 0, id INTEGER AUTO_INCREMENT, PRIMARY KEY (id))`
+             likes INTEGER NOT NULL DEFAULT 0, numcomments INTEGER NOT NULL DEFAULT 0,
+             id INTEGER AUTO_INCREMENT, PRIMARY KEY (id))`
     _, err = db.Exec(post)
     if err != nil {
         return fmt.Errorf("Error creating table post: ", err)
@@ -171,64 +174,6 @@ func Getpeople()([]Person, error) {
     return people, nil
 }
 
-// Get comments for a given post
-func GetComments(id int) ([]Comment, error) {
-    var comments []Comment
-    rows, err := db.Query("SELECT content, author, date, likes FROM comment WHERE post_id='"+
-        strconv.Itoa(id)+"'")
-    if err != nil {
-        return nil, fmt.Errorf("Error retrieving from comment table: ", err)
-    }
-    defer rows.Close()
-    for rows.Next() {
-        var comment Comment
-        err = rows.Scan(&comment.Content, &comment.Author, &comment.Date, &comment.Likes)
-        if err != nil {
-            return nil, fmt.Errorf("Error reading data: ", err)
-        }
-        comments = append(comments, comment)
-    }
-    return comments, nil
-}
-
-// Get all posts in the system
-func GetAllPosts() ([]Post, error) {
-    var posts []Post
-    rows, err := db.Query("SELECT content, author, date, likes, id FROM post ORDER BY date DESC")
-    if err != nil {
-        return nil, fmt.Errorf("Error retrieving from post table: ", err)
-    }
-    defer rows.Close()
-    for rows.Next() {
-        var post Post
-        err = rows.Scan(&post.Content, &post.Author, &post.Date, &post.Likes, &post.Id)
-        if err != nil {
-            return nil, fmt.Errorf("Error reading data: ", err)
-        }
-        posts = append(posts, post)
-    }
-    return posts, nil
-}
-
-// Retrieves a post with a given id
-func GetPost(id string) (Post, error) {
-    var post Post
-    row, err := db.Query("SELECT content, author, date, likes, id FROM post WHERE id='"+id+"'")
-    if err != nil {
-        return post, fmt.Errorf("Error retrieving from post table: ", err)
-    }
-    defer row.Close()
-    if row.Next() {
-        err = row.Scan(&post.Content, &post.Author, &post.Date, &post.Likes, &post.Id)
-        if err != nil {
-            return post, fmt.Errorf("Error reading data: ", err)
-        }
-    } else {
-        return post, fmt.Errorf("Post "+id+" does not exist.")
-    }
-    return post, nil
-}
-
 // Adds a person
 func Addperson(person Person) error {
     _, err := db.Exec("INSERT INTO person (first, last, color) VALUES (?, ?, ?)",
@@ -301,6 +246,63 @@ func ValidSession(uuid string) (bool, error) {
     return false, nil
 }
 
+// Get all posts in the system
+func GetAllPosts() ([]Post, error) {
+    var posts []Post
+    rows, err := db.Query("SELECT content, author, date, likes, numcomments, id FROM post ORDER BY date DESC")
+    if err != nil {
+        return nil, fmt.Errorf("Error retrieving from post table: ", err)
+    }
+    defer rows.Close()
+    for rows.Next() {
+        var post Post
+        err = rows.Scan(&post.Content, &post.Author, &post.Date, &post.Likes, &post.NumComments, &post.Id)
+        if err != nil {
+            return nil, fmt.Errorf("Error reading data: ", err)
+        }
+        posts = append(posts, post)
+    }
+    return posts, nil
+}
+
+// Get comments for a given post
+func GetComments(id int) ([]Comment, error) {
+    var comments []Comment
+    rows, err := db.Query("SELECT content, author, date, likes, id FROM comment WHERE post_id='"+
+        strconv.Itoa(id)+"'"+" ORDER BY date DESC")
+    if err != nil {
+        return nil, fmt.Errorf("Error retrieving from comment table: ", err)
+    }
+    defer rows.Close()
+    for rows.Next() {
+        var comment Comment
+        err = rows.Scan(&comment.Content, &comment.Author, &comment.Date, &comment.Likes, &comment.Id)
+        if err != nil {
+            return nil, fmt.Errorf("Error reading data: ", err)
+        }
+        comments = append(comments, comment)
+    }
+    return comments, nil
+}
+
+// Retrieves a post with a given id
+func GetPost(id string) (Post, error) {
+    var post Post
+    row, err := db.Query("SELECT content, author, date, likes, numcomments, id FROM post WHERE id='"+id+"'")
+    if err != nil {
+        return post, fmt.Errorf("Error retrieving from post table: ", err)
+    }
+    defer row.Close()
+    if row.Next() {
+        err = row.Scan(&post.Content, &post.Author, &post.Date, &post.Likes, &post.NumComments, &post.Id)
+        if err != nil {
+            return post, fmt.Errorf("Error reading data: ", err)
+        }
+    } else {
+        return post, fmt.Errorf("Post "+id+" does not exist.")
+    }
+    return post, nil
+}
 // Gets the author of a post or comment
 func GetAuthor(entity string, id int) (string, error) {
     var author string
@@ -320,6 +322,8 @@ func GetAuthor(entity string, id int) (string, error) {
     return author, nil
 }
 
+
+// Gets the post id from a comment id
 func GetPostIDFromCommentID(commentID int) (int, error) {
     var postID int
     row, err := db.Query("SELECT post_id FROM comment WHERE id='"+strconv.Itoa(commentID)+"'")
@@ -354,6 +358,23 @@ func DeletePost(id int) error {
 func AddComment(content string, author string, post_id int) error {
     _, err := db.Exec("INSERT INTO comment (content, author, post_id) VALUES (?, ?, ?)",
         content, author, post_id)
+    if err != nil {
+        return fmt.Errorf("Error inserting into comment table: ", err)
+    }
+
+    // Update number of comments on post
+    var numComments int
+    row, err := db.Query("SELECT numcomments FROM post WHERE id='"+strconv.Itoa(post_id)+"'")
+    if err != nil {
+        return fmt.Errorf("Error inserting into comment table: ", err)
+    }
+    defer row.Close()
+    if row.Next() {
+        row.Scan(&numComments)
+    }
+    numComments++
+    _, err = db.Exec("UPDATE post SET numcomments="+strconv.Itoa(numComments)+
+        " WHERE id='"+strconv.Itoa(post_id)+"'")
     return err
 }
 
@@ -364,38 +385,38 @@ func DeleteComment(id int) error {
 }
 
 // Returns the number of likes associate with a post or comment
-func GetLikes(entity string, id int) (int, error) {
-    var num_likes int
-    row, err := db.Query("SELECT likes FROM "+entity+" WHERE id='"+strconv.Itoa(id)+"'")
+func GetLikes(entity string, id string) (int, error) {
+    var numLikes int
+    row, err := db.Query("SELECT likes FROM "+entity+" WHERE id='"+id+"'")
     if err != nil {
         return 0, err
     }
     defer row.Close()
     if row.Next() {
-        err = row.Scan(&num_likes)
+        err = row.Scan(&numLikes)
         if err != nil {
             return 0, fmt.Errorf("Error reading from "+entity+" row: ", err)
         }
     } else {
-        return 0, fmt.Errorf(entity+" with id:"+strconv.Itoa(id)+" not found")
+        return 0, fmt.Errorf(entity+" with id:"+id+" not found")
     }
-    return num_likes, nil
+    return numLikes, nil
 }
 
 // Likes a post or comment
-func Like(entity string, id int) error {
+func Like(entity string, id string) error {
     num_likes, err := GetLikes(entity, id)
     num_likes++
     if err != nil {
         return err
     }
     _, err = db.Exec("UPDATE "+entity+" SET likes="+strconv.Itoa(num_likes)+
-        " WHERE id='"+strconv.Itoa(id)+"'")
+        " WHERE id='"+id+"'")
     return err
 }
 
 // Dislikes a post or comment
-func Dislike(entity string, id int) error {
+func Dislike(entity string, id string) error {
     num_likes, err := GetLikes(entity, id)
     if err != nil {
         return err
@@ -404,6 +425,6 @@ func Dislike(entity string, id int) error {
         num_likes--
     }
     _, err = db.Exec("UPDATE "+entity+" SET likes="+strconv.Itoa(num_likes)+
-        " WHERE id='"+strconv.Itoa(id)+"'")
+        " WHERE id='"+id+"'")
     return err
 }
