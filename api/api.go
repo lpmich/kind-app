@@ -8,10 +8,12 @@ import (
     "encoding/json"
     "gitlab.sas.com/lomich/kind-app/db"
     "gitlab.sas.com/lomich/kind-app/security"
+    "github.com/google/uuid"
     "github.com/gin-gonic/gin"
     "github.com/golang-jwt/jwt"
 )
 
+// local objects to read-in & output json body
 type post struct {
     Content string `json:"content"`
     Author string `json:"author"`
@@ -31,7 +33,12 @@ type claims struct {
     jwt.StandardClaims
 }
 
-var signingKey = []byte("pvh7YQqceEC0qqKUSCTh")
+type newContent struct {
+    Content string `json:"content"`
+}
+
+
+var signingKey = []byte(uuid.NewString())
 
 // Generates a new JWT
 func generateJWT(c *gin.Context) {
@@ -67,12 +74,7 @@ func generateJWT(c *gin.Context) {
         c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
-
-    m := make(map[string]string)
-    m["key"] = tokenString
-    jsonString, _ := json.Marshal(m)
-
-    c.IndentedJSON(http.StatusOK, jsonString)
+    c.IndentedJSON(http.StatusOK, gin.H{"key": tokenString})
 }
 
 // Determines if a request is authorized
@@ -86,13 +88,7 @@ func authorized(c *gin.Context) bool {
                 return signingKey, nil
             })
         if err != nil {
-            fmt.Println()
-            if err == jwt.ErrSignatureInvalid {
-                c.JSON(http.StatusUnauthorized, gin.H{
-                    "error": err.Error()})
-                return false
-            }
-            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+            c.JSON(http.StatusBadRequest, gin.H{"error": "Error parsing JWT Claims: "+err.Error()})
             return false
         }
         if !tkn.Valid {
@@ -114,9 +110,22 @@ func authorized(c *gin.Context) bool {
     return false
 }
 
+// Return username from encoded JWT
+func getUsername(c *gin.Context) string {
+    authHeader := c.Request.Header["Authorization"]
+    jwtString := strings.Fields(authHeader[0])[1]
+    claims := &claims{}
+    jwt.ParseWithClaims(jwtString, claims,
+        func(t *jwt.Token) (interface{}, error) {
+            return signingKey, nil
+    })
+    return claims.Username
+}
+
 // Landing page for API
 func apiLanding(c *gin.Context) {
     if !authorized(c) {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized"})
         return
     }
     c.String(http.StatusOK, "Welcome to kind-app API")
@@ -125,6 +134,7 @@ func apiLanding(c *gin.Context) {
 // Gets a post by id
 func getPost(c *gin.Context) {
     if !authorized(c) {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized"})
         return
     }
     var post post
@@ -141,14 +151,17 @@ func getPost(c *gin.Context) {
     post.Author = db_post.Author
     post.Date = db_post.Date.String()
     post.Likes = db_post.Likes
-    post.Comments = fmt.Sprintf("%#v", db_post.Comments)
     post.Id = db_post.Id
+
+    comments, _ := db.GetComments(post.Id)
+    post.Comments = fmt.Sprintf("%#v", comments)
     c.IndentedJSON(http.StatusOK, post)
 }
 
 // Get all posts in the system
 func getPosts(c *gin.Context) {
     if !authorized(c) {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized"})
         return
     }
     var posts []post
@@ -163,8 +176,10 @@ func getPosts(c *gin.Context) {
         post.Author = db_post.Author
         post.Date = db_post.Date.String()
         post.Likes = db_post.Likes
-        post.Comments = fmt.Sprintf("%#v", db_post.Comments)
         post.Id = db_post.Id
+
+        comments, _ := db.GetComments(post.Id)
+        post.Comments = fmt.Sprintf("%#v", comments)
         posts = append(posts, post)
     }
     c.IndentedJSON(http.StatusOK, posts)
@@ -172,15 +187,55 @@ func getPosts(c *gin.Context) {
 
 // Creates a post with content and author
 func postPost(c *gin.Context) {
-    c.IndentedJSON(http.StatusOK, nil)
+    if !authorized(c) {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized"})
+        return
+    }
+    var p newContent
+    err := json.NewDecoder(c.Request.Body).Decode(&p)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Error reading json body: "+err.Error()})
+        return
+    }
+    username := getUsername(c)
+    if strings.TrimSpace(p.Content) == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Content field cannot be empty"})
+    }
+    id, err := db.AddPost(p.Content, username)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    c.IndentedJSON(http.StatusOK, gin.H{"message": "Success", "post_id": id})
 }
 
-// Get all comments in the system
-func getComments(c *gin.Context) {
-    c.IndentedJSON(http.StatusOK, nil)
+func postComment(c *gin.Context) {
+    if !authorized(c) {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized"})
+        return
+    }
 
+    username := getUsername(c)
+    id := c.Param("postID")
+
+    var newComment newContent
+    err := json.NewDecoder(c.Request.Body).Decode(&newComment)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Error reading json body: "+err.Error()})
+        return
+    }
+    if strings.TrimSpace(newComment.Content) == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Content field cannot be empty"})
+        return
+    }
+
+    id, err = db.AddComment(newComment.Content, username, id)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    c.IndentedJSON(http.StatusOK, gin.H{"message": "Success", "comment_id": id})
 }
-
 // Initialize GIN API and expose endpoints
 func StartAPI() {
     router := gin.Default()
@@ -190,9 +245,14 @@ func StartAPI() {
 
     router.GET("/api/posts", getPosts)
     router.GET("/api/post/:id", getPost)
-    router.POST("/api/post", postPost)
 
-    router.GET("/api/comments", getComments)
+    router.POST("/api/post", postPost)
+    router.POST("/api/comment/:postID", postComment)
+
+// Not implemented:
+//    router.DELETE("/api/post/:id", deletePost)
+//    router.DELETE("/api/comment/:id", deleteComment)
+
     router.RunTLS(":8080", "security/server.crt", "security/server.key")
 }
 

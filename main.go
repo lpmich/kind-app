@@ -171,35 +171,11 @@ func post(w http.ResponseWriter, r *http.Request) {
         return
     }
     content := r.FormValue("content")
-    err = db.AddPost(content, author)
+    _, err = db.AddPost(content, author)
     if err != nil {
         fmt.Println(err)
     }
     http.Redirect(w, r, "https://localhost/", 303)
-}
-
-// Removes a post
-func removePost(w http.ResponseWriter, r *http.Request) {
-    if !isAuthenticated(r) {
-        http.Redirect(w, r, "https://localhost/login", 303)
-    }
-    uuid := getSessionID(r)
-    username, err := db.GetUsername(uuid)
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-    id := r.FormValue("postid")
-    author, err := db.GetAuthor("post", id)
-    if author != username {
-        fmt.Println("User: "+username+" is not authorized to delete "+author+"'s post")
-        return
-    }
-    err = db.DeletePost(id)
-    if err != nil {
-        fmt.Println(err)
-    }
-    http.Redirect(w, r, "https://localhost", 303)
 }
 
 // Creates a new comment
@@ -215,45 +191,7 @@ func comment(w http.ResponseWriter, r *http.Request) {
     }
     id := r.FormValue("postid")
     content := r.FormValue("content")
-    err = db.AddComment(content, author, id)
-    if err != nil {
-        fmt.Println(err)
-    }
-    http.Redirect(w, r, "https://localhost", 303)
-}
-
-// Removes a comment
-func removeComment(w http.ResponseWriter, r *http.Request) {
-    if !isAuthenticated(r) {
-        http.Redirect(w, r, "https://localhost/login", 303)
-    }
-    uuid := getSessionID(r)
-    username, err := db.GetUsername(uuid)
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-    id := r.FormValue("commentid")
-    commentAuthor, err := db.GetAuthor("comment", id)
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-    postID, err := db.GetPostIDFromCommentID(id)
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-    postAuthor, err := db.GetAuthor("post", postID)
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-    if commentAuthor != username || postAuthor != username {
-        fmt.Println("User: "+username+" is not authorized to delete "+commentAuthor+"'s comment")
-        return
-    }
-    err = db.DeleteComment(id)
+    _, err = db.AddComment(content, author, id)
     if err != nil {
         fmt.Println(err)
     }
@@ -306,9 +244,7 @@ func main() {
     http.HandleFunc("/login", login)
     http.HandleFunc("/logout", logout)
     http.HandleFunc("/post", post)
-    http.HandleFunc("/removepost", removePost)
     http.HandleFunc("/comment", comment)
-    http.HandleFunc("/removecomment", removeComment)
     http.HandleFunc("/like", like)
     http.HandleFunc("/dislike", dislike)
     http.HandleFunc("/view", view)

@@ -214,9 +214,10 @@ func ValidSession(uuid string) (bool, error) {
 }
 
 // Adds a post
-func AddPost(content string, author string) error {
-    _, err := db.Exec("INSERT INTO post (content, author) VALUES (?, ?)", content, author)
-    return err
+func AddPost(content string, author string) (string, error) {
+    result, err := db.Exec("INSERT INTO post (content, author) VALUES (?, ?)", content, author)
+    id, _ := result.LastInsertId()
+    return strconv.FormatInt(id, 10), err
 }
 
 // Deletes a post
@@ -226,18 +227,19 @@ func DeletePost(id string) error {
 }
 
 // Adds a comment to a post
-func AddComment(content string, author string, post_id string) error {
-    _, err := db.Exec("INSERT INTO comment (content, author, post_id) VALUES (?, ?, ?)",
+func AddComment(content string, author string, post_id string) (string, error) {
+    result, err := db.Exec("INSERT INTO comment (content, author, post_id) VALUES (?, ?, ?)",
         content, author, post_id)
     if err != nil {
-        return fmt.Errorf("Error inserting into comment table: ", err)
+        return "", fmt.Errorf("Error inserting into comment table: ", err)
     }
+    id, _ := result.LastInsertId()
 
     // Update number of comments on post
     var numComments int
     row, err := db.Query("SELECT numcomments FROM post WHERE id='"+post_id+"'")
     if err != nil {
-        return fmt.Errorf("Error inserting into comment table: ", err)
+        return "", fmt.Errorf("Error inserting into comment table: ", err)
     }
     defer row.Close()
     if row.Next() {
@@ -246,7 +248,7 @@ func AddComment(content string, author string, post_id string) error {
     numComments++
     _, err = db.Exec("UPDATE post SET numcomments="+strconv.Itoa(numComments)+
         " WHERE id='"+post_id+"'")
-    return err
+    return strconv.FormatInt(id, 10), err
 }
 
 // Deletes a comment from a post
