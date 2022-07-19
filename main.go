@@ -3,7 +3,6 @@ package main
 import (
     "log"
     "fmt"
-    "strconv"
     "net/http"
     "text/template"
     "gitlab.sas.com/lomich/kind-app/db"
@@ -72,7 +71,6 @@ func index(w http.ResponseWriter, r *http.Request) {
     data.Username, _ = db.GetUsername(getSessionID(r))
 
     t, _ := template.ParseFiles("assets/index.html")
-    fmt.Println(data)
     t.Execute(w, data)
 }
 
@@ -191,7 +189,7 @@ func removePost(w http.ResponseWriter, r *http.Request) {
         fmt.Println(err)
         return
     }
-    id, _ := strconv.Atoi(r.FormValue("postid"))
+    id := r.FormValue("postid")
     author, err := db.GetAuthor("post", id)
     if author != username {
         fmt.Println("User: "+username+" is not authorized to delete "+author+"'s post")
@@ -201,6 +199,7 @@ func removePost(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         fmt.Println(err)
     }
+    http.Redirect(w, r, "https://localhost", 303)
 }
 
 // Creates a new comment
@@ -214,7 +213,7 @@ func comment(w http.ResponseWriter, r *http.Request) {
         fmt.Println(err)
         return
     }
-    id, _ := strconv.Atoi(r.FormValue("postid"))
+    id := r.FormValue("postid")
     content := r.FormValue("content")
     err = db.AddComment(content, author, id)
     if err != nil {
@@ -234,7 +233,7 @@ func removeComment(w http.ResponseWriter, r *http.Request) {
         fmt.Println(err)
         return
     }
-    id, _ := strconv.Atoi(r.FormValue("commentid"))
+    id := r.FormValue("commentid")
     commentAuthor, err := db.GetAuthor("comment", id)
     if err != nil {
         fmt.Println(err)
@@ -258,6 +257,7 @@ func removeComment(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         fmt.Println(err)
     }
+    http.Redirect(w, r, "https://localhost", 303)
 }
 
 // Likes a post/comment

@@ -36,6 +36,20 @@ func Authenticate(username string, password string) (string, error) {
     return uuid, nil
 }
 
+// Determines if a user is authenticated or not
+func IsAuthenticated(uuid string) (bool, error) {
+    return db.ValidSession(uuid)
+}
+
+// Removes a session given a uuid
+func RemoveSession(uuid string) error {
+    username, err := db.GetUsername(uuid)
+    if err != nil {
+        return err
+    }
+    return db.DeleteSession(username)
+}
+
 // Creates a new user
 func Createuser(username string, password string) error {
     hash, salt, _ := db.GetCreds(username)
@@ -52,18 +66,4 @@ func Createuser(username string, password string) error {
     hash = hashPassword(password, salt)
     user := db.User{username, hash, salt}
     return db.Adduser(user)
-}
-
-// Determines if a user is authenticated or not
-func IsAuthenticated(uuid string) (bool, error) {
-    return db.ValidSession(uuid)
-}
-
-// Removes a session given a uuid
-func RemoveSession(uuid string) error {
-    username, err := db.GetUsername(uuid)
-    if err != nil {
-        return err
-    }
-    return db.DeleteSession(username)
 }

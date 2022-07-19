@@ -18,7 +18,7 @@ type post struct {
     Date string `json:"date"`
     Likes int `json:"likes"`
     Comments string `json:"comments"`
-    Id  int `json:"id"`
+    Id  string `json:"id"`
 }
 
 type credentials struct {
@@ -41,7 +41,7 @@ func generateJWT(c *gin.Context) {
     err := json.NewDecoder(c.Request.Body).Decode(&creds)
     if err != nil {
         fmt.Println(err)
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
 
@@ -49,7 +49,7 @@ func generateJWT(c *gin.Context) {
     _, err = security.Authenticate(creds.Username, creds.Password)
     if err != nil {
         fmt.Println(err)
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
 
@@ -64,14 +64,15 @@ func generateJWT(c *gin.Context) {
     tokenString, err := token.SignedString(signingKey)
     if err != nil {
         fmt.Println(err)
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
 
-     m := make(map[string]string)
-     m["key"] = tokenString
-     jsonString, _ := json.Marshal(m)
-    c.JSON(http.StatusOK, jsonString)
+    m := make(map[string]string)
+    m["key"] = tokenString
+    jsonString, _ := json.Marshal(m)
+
+    c.IndentedJSON(http.StatusOK, jsonString)
 }
 
 // Determines if a request is authorized
@@ -115,12 +116,17 @@ func authorized(c *gin.Context) bool {
 
 // Landing page for API
 func apiLanding(c *gin.Context) {
-    authorized(c)
+    if !authorized(c) {
+        return
+    }
     c.String(http.StatusOK, "Welcome to kind-app API")
 }
 
 // Gets a post by id
 func getPost(c *gin.Context) {
+    if !authorized(c) {
+        return
+    }
     var post post
 
     id := c.Param("id")
@@ -142,6 +148,9 @@ func getPost(c *gin.Context) {
 
 // Get all posts in the system
 func getPosts(c *gin.Context) {
+    if !authorized(c) {
+        return
+    }
     var posts []post
     db_posts, err := db.GetAllPosts()
     if err != nil {
@@ -175,11 +184,14 @@ func getComments(c *gin.Context) {
 // Initialize GIN API and expose endpoints
 func StartAPI() {
     router := gin.Default()
+
     router.GET("", apiLanding)
     router.POST("/api/jwt", generateJWT)
-    router.GET("/api/post/:id", getPost)
+
     router.GET("/api/posts", getPosts)
-    router.POST("api/post", postPost)
+    router.GET("/api/post/:id", getPost)
+    router.POST("/api/post", postPost)
+
     router.GET("/api/comments", getComments)
     router.RunTLS(":8080", "security/server.crt", "security/server.key")
 }

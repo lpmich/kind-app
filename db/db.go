@@ -31,7 +31,7 @@ type Post struct {
     Likes int
     NumComments int
     Comments []Comment
-    Id int
+    Id string
 }
 
 type Comment struct {
@@ -39,7 +39,7 @@ type Comment struct {
     Author string
     Date time.Time
     Likes int
-    Id int
+    Id string
 }
 
 // Try to connect to database 10 times
@@ -113,6 +113,16 @@ func initDB() error {
     return nil
 }
 
+// Adds a user
+func Adduser(user User) error {
+    _, err := db.Exec("INSERT INTO user (username, password, salt) VALUES (?, ?, ?)",
+        user.Username, user.Password, user.Salt)
+    if err != nil {
+        return fmt.Errorf("Error inserting into user table: ", err)
+    }
+    return nil
+}
+
 // Returns username given a uuid 
 func GetUsername(uuid string) (string, error) {
     var username string
@@ -153,47 +163,6 @@ func GetCreds(username string) (string, []byte, error) {
     return password, hash, nil
 }
 
-// Gets people
-func Getpeople()([]Person, error) {
-    var people []Person
-
-    rows, err := db.Query("SELECT first, last, color FROM person")
-    if err != nil {
-        return nil, fmt.Errorf("Error retrieving from person table: ", err)
-    }
-    defer rows.Close()
-    for rows.Next() {
-        var person Person
-        err = rows.Scan(&person.First, &person.Last, &person.Color)
-        if err != nil {
-            return nil, fmt.Errorf("Error reading data: ", err)
-        }
-        people = append(people, person)
-    }
-
-    return people, nil
-}
-
-// Adds a person
-func Addperson(person Person) error {
-    _, err := db.Exec("INSERT INTO person (first, last, color) VALUES (?, ?, ?)",
-        person.First, person.Last, person.Color)
-    if err != nil {
-        return fmt.Errorf("Error inserting into person table: ", err)
-    }
-    return nil
-}
-
-// Adds a user
-func Adduser(user User) error {
-    _, err := db.Exec("INSERT INTO user (username, password, salt) VALUES (?, ?, ?)",
-        user.Username, user.Password, user.Salt)
-    if err != nil {
-        return fmt.Errorf("Error inserting into user table: ", err)
-    }
-    return nil
-}
-
 // Adds a user's session
 func AddSession(username string) (string, error) {
     err := DeleteSession(username)
@@ -204,9 +173,7 @@ func AddSession(username string) (string, error) {
     for ; true; {
         id = uuid.NewString()
         row, _ := db.Query("SELECT * FROM session where uuid='"+id+"'")
-        if row.Next() {
-            // Generate new id
-        } else {
+        if !row.Next() {
             break
         }
     }
@@ -246,6 +213,74 @@ func ValidSession(uuid string) (bool, error) {
     return false, nil
 }
 
+// Adds a post
+func AddPost(content string, author string) error {
+    _, err := db.Exec("INSERT INTO post (content, author) VALUES (?, ?)", content, author)
+    return err
+}
+
+// Deletes a post
+func DeletePost(id string) error {
+    _, err := db.Exec("DELETE FROM post WHERE id='"+id+"'")
+    return err
+}
+
+// Adds a comment to a post
+func AddComment(content string, author string, post_id string) error {
+    _, err := db.Exec("INSERT INTO comment (content, author, post_id) VALUES (?, ?, ?)",
+        content, author, post_id)
+    if err != nil {
+        return fmt.Errorf("Error inserting into comment table: ", err)
+    }
+
+    // Update number of comments on post
+    var numComments int
+    row, err := db.Query("SELECT numcomments FROM post WHERE id='"+post_id+"'")
+    if err != nil {
+        return fmt.Errorf("Error inserting into comment table: ", err)
+    }
+    defer row.Close()
+    if row.Next() {
+        row.Scan(&numComments)
+    }
+    numComments++
+    _, err = db.Exec("UPDATE post SET numcomments="+strconv.Itoa(numComments)+
+        " WHERE id='"+post_id+"'")
+    return err
+}
+
+// Deletes a comment from a post
+func DeleteComment(id string) error {
+    _, err := db.Exec("DELETE FROM comment WHERE id='"+id+"'")
+    return err
+}
+
+// Likes a post or comment
+func Like(entity string, id string) error {
+    num_likes, err := GetLikes(entity, id)
+    num_likes++
+    if err != nil {
+        return err
+    }
+    _, err = db.Exec("UPDATE "+entity+" SET likes="+strconv.Itoa(num_likes)+
+        " WHERE id='"+id+"'")
+    return err
+}
+
+// Dislikes a post or comment
+func Dislike(entity string, id string) error {
+    num_likes, err := GetLikes(entity, id)
+    if err != nil {
+        return err
+    }
+    if num_likes > 0 {
+        num_likes--
+    }
+    _, err = db.Exec("UPDATE "+entity+" SET likes="+strconv.Itoa(num_likes)+
+        " WHERE id='"+id+"'")
+    return err
+}
+
 // Get all posts in the system
 func GetAllPosts() ([]Post, error) {
     var posts []Post
@@ -266,10 +301,10 @@ func GetAllPosts() ([]Post, error) {
 }
 
 // Get comments for a given post
-func GetComments(id int) ([]Comment, error) {
+func GetComments(id string) ([]Comment, error) {
     var comments []Comment
     rows, err := db.Query("SELECT content, author, date, likes, id FROM comment WHERE post_id='"+
-        strconv.Itoa(id)+"'"+" ORDER BY date DESC")
+        id+"'"+" ORDER BY date DESC")
     if err != nil {
         return nil, fmt.Errorf("Error retrieving from comment table: ", err)
     }
@@ -304,9 +339,9 @@ func GetPost(id string) (Post, error) {
     return post, nil
 }
 // Gets the author of a post or comment
-func GetAuthor(entity string, id int) (string, error) {
+func GetAuthor(entity string, id string) (string, error) {
     var author string
-    row, err := db.Query("SELECT author FROM "+entity+" WHERE id='"+strconv.Itoa(id)+"'")
+    row, err := db.Query("SELECT author FROM "+entity+" WHERE id='"+id+"'")
     if err != nil {
         return "", err
     }
@@ -317,71 +352,29 @@ func GetAuthor(entity string, id int) (string, error) {
             return "", fmt.Errorf("Error reading from author rows: ", err)
         }
     } else {
-        return "", fmt.Errorf(entity+" with id:"+strconv.Itoa(id)+" does not exist")
+        return "", fmt.Errorf(entity+" with id:"+id+" does not exist")
     }
     return author, nil
 }
 
 
 // Gets the post id from a comment id
-func GetPostIDFromCommentID(commentID int) (int, error) {
-    var postID int
-    row, err := db.Query("SELECT post_id FROM comment WHERE id='"+strconv.Itoa(commentID)+"'")
+func GetPostIDFromCommentID(commentID string) (string, error) {
+    var postID string
+    row, err := db.Query("SELECT post_id FROM comment WHERE id='"+commentID+"'")
     if err != nil {
-        return 0, err
+        return "", err
     }
     defer row.Close()
     if row.Next() {
         err = row.Scan(&postID)
         if err != nil {
-            return 0, fmt.Errorf("Error reading from comment rows: ", err)
+            return "", fmt.Errorf("Error reading from comment rows: ", err)
         }
     } else {
-        return 0, fmt.Errorf("Comment "+strconv.Itoa(commentID)+" cannot be linked to a post")
+        return "", fmt.Errorf("Comment "+commentID+" cannot be linked to a post")
     }
     return postID, nil
-}
-
-// Adds a post
-func AddPost(content string, author string) error {
-    _, err := db.Exec("INSERT INTO post (content, author) VALUES (?, ?)", content, author)
-    return err
-}
-
-// Deletes a post
-func DeletePost(id int) error {
-    _, err := db.Exec("DELETE FROM post WHERE id='"+strconv.Itoa(id)+"'")
-    return err
-}
-
-// Adds a comment to a post
-func AddComment(content string, author string, post_id int) error {
-    _, err := db.Exec("INSERT INTO comment (content, author, post_id) VALUES (?, ?, ?)",
-        content, author, post_id)
-    if err != nil {
-        return fmt.Errorf("Error inserting into comment table: ", err)
-    }
-
-    // Update number of comments on post
-    var numComments int
-    row, err := db.Query("SELECT numcomments FROM post WHERE id='"+strconv.Itoa(post_id)+"'")
-    if err != nil {
-        return fmt.Errorf("Error inserting into comment table: ", err)
-    }
-    defer row.Close()
-    if row.Next() {
-        row.Scan(&numComments)
-    }
-    numComments++
-    _, err = db.Exec("UPDATE post SET numcomments="+strconv.Itoa(numComments)+
-        " WHERE id='"+strconv.Itoa(post_id)+"'")
-    return err
-}
-
-// Deletes a comment from a post
-func DeleteComment(id int) error {
-    _, err := db.Exec("DELETE FROM comment WHERE id='"+strconv.Itoa(id)+"'")
-    return err
 }
 
 // Returns the number of likes associate with a post or comment
@@ -403,28 +396,32 @@ func GetLikes(entity string, id string) (int, error) {
     return numLikes, nil
 }
 
-// Likes a post or comment
-func Like(entity string, id string) error {
-    num_likes, err := GetLikes(entity, id)
-    num_likes++
+// Gets people
+func Getpeople()([]Person, error) {
+    var people []Person
+
+    rows, err := db.Query("SELECT first, last, color FROM person")
     if err != nil {
-        return err
+        return nil, fmt.Errorf("Error retrieving from person table: ", err)
     }
-    _, err = db.Exec("UPDATE "+entity+" SET likes="+strconv.Itoa(num_likes)+
-        " WHERE id='"+id+"'")
-    return err
+    defer rows.Close()
+    for rows.Next() {
+        var person Person
+        err = rows.Scan(&person.First, &person.Last, &person.Color)
+        if err != nil {
+            return nil, fmt.Errorf("Error reading data: ", err)
+        }
+        people = append(people, person)
+    }
+    return people, nil
 }
 
-// Dislikes a post or comment
-func Dislike(entity string, id string) error {
-    num_likes, err := GetLikes(entity, id)
+// Adds a person
+func Addperson(person Person) error {
+    _, err := db.Exec("INSERT INTO person (first, last, color) VALUES (?, ?, ?)",
+        person.First, person.Last, person.Color)
     if err != nil {
-        return err
+        return fmt.Errorf("Error inserting into person table: ", err)
     }
-    if num_likes > 0 {
-        num_likes--
-    }
-    _, err = db.Exec("UPDATE "+entity+" SET likes="+strconv.Itoa(num_likes)+
-        " WHERE id='"+id+"'")
-    return err
+    return nil
 }
