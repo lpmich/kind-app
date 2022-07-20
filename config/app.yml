@@ -40,6 +40,13 @@ spec:
         - name: kind-app
           image: kind-app:latest
           imagePullPolicy: Never
+          resources:
+            requests:
+              memory: "120M"
+              cpu: "200m"
+            limits:
+              memory: "200M"
+              cpu: "400m"
           env:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
