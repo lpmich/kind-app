@@ -246,8 +246,12 @@ func AddComment(content string, author string, post_id string) (string, error) {
         row.Scan(&numComments)
     }
     numComments++
+    db.Exec("USE kindapp")
     _, err = db.Exec("UPDATE post SET numcomments="+strconv.Itoa(numComments)+
         " WHERE id='"+post_id+"'")
+    if err != nil {
+        fmt.Println(err)
+    }
     return strconv.FormatInt(id, 10), err
 }
 
@@ -340,6 +344,7 @@ func GetPost(id string) (Post, error) {
     }
     return post, nil
 }
+
 // Gets the author of a post or comment
 func GetAuthor(entity string, id string) (string, error) {
     var author string
