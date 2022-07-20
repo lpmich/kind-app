@@ -257,8 +257,29 @@ func AddComment(content string, author string, post_id string) (string, error) {
 
 // Deletes a comment from a post
 func DeleteComment(id string) error {
-    _, err := db.Exec("DELETE FROM comment WHERE id='"+id+"'")
-    return err
+    var numComments int
+    postID, err := GetPostIDFromCommentID(id)
+    if err != nil {
+        return err
+    }
+
+    post, err := GetPost(postID)
+    if err != nil {
+        return err
+    }
+    numComments = post.NumComments
+    numComments--
+    db.Exec("USE kindapp")
+    _, err = db.Exec("UPDATE post SET numcomments="+strconv.Itoa(numComments)+
+        " WHERE id='"+postID+"'")
+    if err != nil {
+        return fmt.Errorf("Error updating number of comments on post: ", err.Error())
+    }
+    _, err = db.Exec("DELETE FROM comment WHERE id='"+id+"'")
+    if err != nil {
+        return fmt.Errorf("Error deleting from number of comments on post: ", err.Error())
+    }
+    return nil
 }
 
 // Likes a post or comment

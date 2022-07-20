@@ -88,12 +88,12 @@ func authorized(c *gin.Context) bool {
                 return signingKey, nil
             })
         if err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "Error parsing JWT Claims: "+err.Error()})
+            c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Error parsing JWT Claims: "+err.Error()})
             return false
         }
         if !tkn.Valid {
             fmt.Println()
-            c.JSON(http.StatusUnauthorized, gin.H{"error":
+            c.IndentedJSON(http.StatusUnauthorized, gin.H{"error":
                 "jwt is not valid"})
             return false
         }
@@ -125,7 +125,8 @@ func getUsername(c *gin.Context) string {
 // Landing page for API
 func apiLanding(c *gin.Context) {
     if !authorized(c) {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized"})
+        c.IndentedJSON(http.StatusUnauthorized, gin.H{"error":
+            "You are not authorized, ensure your JWT is presented correctly"})
         return
     }
     c.String(http.StatusOK, "Welcome to kind-app API")
@@ -134,7 +135,8 @@ func apiLanding(c *gin.Context) {
 // Gets a post by id
 func getPost(c *gin.Context) {
     if !authorized(c) {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized"})
+        c.IndentedJSON(http.StatusUnauthorized, gin.H{"error":
+            "You are not authorized, ensure your JWT is presented correctly"})
         return
     }
     var post post
@@ -143,7 +145,7 @@ func getPost(c *gin.Context) {
     db_post, err := db.GetPost(id)
     if err != nil {
         fmt.Println(err)
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
 
@@ -161,13 +163,14 @@ func getPost(c *gin.Context) {
 // Get all posts in the system
 func getPosts(c *gin.Context) {
     if !authorized(c) {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized"})
+        c.IndentedJSON(http.StatusUnauthorized, gin.H{"error":
+            "You are not authorized, ensure your JWT is presented correctly"})
         return
     }
     var posts []post
     db_posts, err := db.GetAllPosts()
     if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
     for _, db_post := range db_posts {
@@ -188,22 +191,23 @@ func getPosts(c *gin.Context) {
 // Creates a post with content and author
 func postPost(c *gin.Context) {
     if !authorized(c) {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized"})
+        c.IndentedJSON(http.StatusUnauthorized, gin.H{"error":
+            "You are not authorized, ensure your JWT is presented correctly"})
         return
     }
     var p newContent
     err := json.NewDecoder(c.Request.Body).Decode(&p)
     if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Error reading json body: "+err.Error()})
+        c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Error reading json body: "+err.Error()})
         return
     }
     username := getUsername(c)
     if strings.TrimSpace(p.Content) == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Content field cannot be empty"})
+        c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Content field cannot be empty"})
     }
     id, err := db.AddPost(p.Content, username)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return
     }
     c.IndentedJSON(http.StatusOK, gin.H{"message": "Success", "post_id": id})
@@ -211,31 +215,100 @@ func postPost(c *gin.Context) {
 
 func postComment(c *gin.Context) {
     if !authorized(c) {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized"})
+        c.IndentedJSON(http.StatusUnauthorized, gin.H{"error":
+            "You are not authorized, ensure your JWT is presented correctly"})
         return
     }
 
     username := getUsername(c)
-    id := c.Param("postID")
+    id := c.Param("id")
 
     var newComment newContent
     err := json.NewDecoder(c.Request.Body).Decode(&newComment)
     if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Error reading json body: "+err.Error()})
+        c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Error reading json body: "+err.Error()})
         return
     }
     if strings.TrimSpace(newComment.Content) == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Content field cannot be empty"})
+        c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "Content field cannot be empty"})
         return
     }
 
     id, err = db.AddComment(newComment.Content, username, id)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return
     }
     c.IndentedJSON(http.StatusOK, gin.H{"message": "Success", "comment_id": id})
 }
+
+
+// Deletes a post
+func deletePost(c *gin.Context) {
+    if !authorized(c) {
+        c.IndentedJSON(http.StatusUnauthorized, gin.H{"error":
+            "You are not authorized, ensure your JWT is presented correctly"})
+        return
+    }
+    username := getUsername(c)
+    id := c.Param("id")
+
+    author, err := db.GetAuthor("post", id)
+    if err != nil {
+        c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    if username != author {
+        c.IndentedJSON(http.StatusUnauthorized, gin.H{"error":
+            "You do not have permission to delete a post that is not yours"})
+        return
+    }
+    err = db.DeletePost(id)
+    if err != nil {
+        c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    c.IndentedJSON(http.StatusOK, gin.H{"message": "Success"})
+}
+
+// Deletes a comment
+func deleteComment(c *gin.Context) {
+    if !authorized(c) {
+        c.IndentedJSON(http.StatusUnauthorized, gin.H{"error":
+            "You are not authorized, ensure your JWT is presented correctly"})
+        return
+    }
+    username := getUsername(c)
+    id := c.Param("id")
+
+    postID, err := db.GetPostIDFromCommentID(id)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    postAuthor, err := db.GetAuthor("post", postID)
+    if err != nil {
+        c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    commentAuthor, err := db.GetAuthor("comment", id)
+    if err != nil {
+        c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    if postAuthor != username && commentAuthor != username {
+        c.IndentedJSON(http.StatusUnauthorized, gin.H{"error":
+            "User: "+username+" is not authorized to delete "+commentAuthor+"'s comment"})
+        return
+    }
+    err = db.DeleteComment(id)
+    if err != nil {
+        c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    c.IndentedJSON(http.StatusOK, gin.H{"message": "Success"})
+}
+
 // Initialize GIN API and expose endpoints
 func StartAPI() {
     router := gin.Default()
@@ -247,11 +320,10 @@ func StartAPI() {
     router.GET("/api/post/:id", getPost)
 
     router.POST("/api/post", postPost)
-    router.POST("/api/comment/:postID", postComment)
+    router.POST("/api/comment/:id", postComment)
 
-// Not implemented:
-//    router.DELETE("/api/post/:id", deletePost)
-//    router.DELETE("/api/comment/:id", deleteComment)
+    router.DELETE("/api/post/:id", deletePost)
+    router.DELETE("/api/comment/:id", deleteComment)
 
     router.RunTLS(":8080", "security/server.crt", "security/server.key")
 }
